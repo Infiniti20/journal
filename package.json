@@ -30,6 +30,7 @@
 		"vite": "^6.0.0"
 	},
 	"dependencies": {
-		"lucide-svelte": "^0.486.0"
+		"lucide-svelte": "^0.486.0",
+		"simplex-noise": "^4.0.3"
 	}
 }

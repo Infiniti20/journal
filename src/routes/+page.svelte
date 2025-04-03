@@ -30,6 +30,8 @@
     images: string[];
     date: string;
     createdAt: Date;
+    mood: number;
+    adjective: string;
   }
 
   // Type for grouped entries
@@ -44,6 +46,7 @@
   // Load entries from localStorage on mount
   onMount(() => {
     loadJournalEntries();
+    console.log(getGroupedEntries());
   });
 
   // Load entries from localStorage
@@ -64,6 +67,8 @@
     title: string;
     content: string;
     images: string[];
+    mood: number;
+    selectedAdjective: string;
   }): void {
     const newEntry: JournalEntry = {
       id: Date.now(),
@@ -71,6 +76,8 @@
       content: entryData.content,
       images: entryData.images || [],
       date: new Date().toISOString(),
+      mood: entryData.mood,
+      adjective: entryData.selectedAdjective,
       createdAt: new Date(),
     };
 
@@ -84,14 +91,17 @@
     isOpen = false;
   }
 
-  // Group entries by day
+  // Group entries by day using local timezone
   function getGroupedEntries(): GroupedEntries {
     const grouped: GroupedEntries = {};
 
     journalEntries.forEach((entry) => {
-      // Create date string in format "YYYY-MM-DD" for grouping
+      // Create date string in format "YYYY-MM-DD" using local timezone
       const entryDate = new Date(entry.date);
-      const dateString = entryDate.toISOString().split("T")[0];
+      const year = entryDate.getFullYear();
+      const month = String(entryDate.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
+      const day = String(entryDate.getDate()).padStart(2, "0");
+      const dateString = `${year}-${month}-${day}`;
 
       if (!grouped[dateString]) {
         grouped[dateString] = [];
@@ -105,66 +115,63 @@
 
   // Format date for display
   function formatDate(dateString: string): string {
-    const date = new Date(dateString);
-    return date.toLocaleDateString("en-US", {
-      weekday: "long",
-      month: "short",
-      day: "numeric",
-    });
+    // For ISO strings from entry.date
+    if (dateString.includes("T")) {
+      const date = new Date(dateString);
+      return date.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      });
+    }
+    // For YYYY-MM-DD strings from getGroupedEntries
+    else {
+      const [year, month, day] = dateString.split("-").map((n) => parseInt(n));
+      const date = new Date(year, month - 1, day); // Month is 0-indexed
+      return date.toLocaleDateString("en-US", {
+        weekday: "long",
+        month: "short",
+        day: "numeric",
+      });
+    }
   }
 
-  // Get formatted date for group headers
+  // Get formatted date for group headers with timezone support
   function getFormattedGroupDate(dateString: string): string {
-    const date = new Date(dateString);
+    const [year, month, day] = dateString.split("-").map((n) => parseInt(n));
+    const date = new Date(year, month - 1, day); // Month is 0-indexed
+
+    // Get today and yesterday dates in local timezone
     const today = new Date();
+    const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayDateString = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
 
     // Format as "Today", "Yesterday", or the date
-    if (date.toDateString() === today.toDateString()) {
+    if (dateString === todayDateString) {
       return "Today";
-    } else if (date.toDateString() === yesterday.toDateString()) {
+    } else if (dateString === yesterdayDateString) {
       return "Yesterday";
     } else {
       return formatDate(dateString);
     }
   }
 
-  // Sort dates in descending order (newest first)
+  // Sort dates in descending order (newest first) with timezone support
   function getSortedDates(grouped: GroupedEntries): string[] {
     return Object.keys(grouped).sort((a, b) => {
-      return new Date(b).getTime() - new Date(a).getTime();
+      // Convert YYYY-MM-DD strings to Date objects for comparison
+      const [yearA, monthA, dayA] = a.split("-").map((n) => parseInt(n));
+      const [yearB, monthB, dayB] = b.split("-").map((n) => parseInt(n));
+
+      const dateA = new Date(yearA, monthA - 1, dayA);
+      const dateB = new Date(yearB, monthB - 1, dayB);
+
+      return dateB.getTime() - dateA.getTime();
     });
   }
-
-  // Sample data is kept for fallback display
-  const todayImages = [
-    {
-      src: "https://picsum.photos/300/300",
-      alt: "People walking by yellow building",
-    },
-  ];
-
-  const todayMood = {
-    name: "Amazed",
-    category: "Travel",
-    color: "#8BC34A",
-  };
-
-  const yesterdayImages = [
-    {
-      src: "https://picsum.photos/400/300",
-      alt: "People looking out a window",
-    },
-    {
-      src: "https://picsum.photos/200/300",
-      alt: "Coffee cup",
-    },
-    {
-      src: "https://picsum.photos/200/300",
-      alt: "Green door",
-    },
-  ];
 </script>
 
 <div
@@ -209,26 +216,27 @@
 
       <TabsContent value="entries" class="mt-0">
         <!-- Display stored journal entries -->
-      
-          <!-- Display actual journal entries grouped by day -->
-          {#each getSortedDates(getGroupedEntries()) as dateString}
-            <h2 class="text-xl font-bold mb-4">
-              {getFormattedGroupDate(dateString)}
-            </h2>
-            {#each getGroupedEntries()[dateString] as entry}
-              <JournalEntry
-                title={entry.title}
-                date={formatDate(entry.date)}
-                content={entry.content}
-                images={entry.images.map((url) => ({
-                  src: url,
-                  alt: entry.title,
-                }))}
-                layout={entry.images.length > 1 ? "grid" : "single-with-mood"}
-                mood={todayMood}
-              />
-            {/each}
+
+        <!-- Display actual journal entries grouped by day -->
+        {#each getSortedDates(getGroupedEntries()) as dateString}
+          <h2 class="text-xl font-bold mb-4">
+            {getFormattedGroupDate(dateString)}
+          </h2>
+          {#each getGroupedEntries()[dateString] as entry}
+            <JournalEntry
+              title={entry.title}
+              date={formatDate(entry.date)}
+              content={entry.content}
+              images={entry.images.map((url) => ({
+                src: url,
+                alt: entry.title,
+              }))}
+              layout={entry.images.length > 1 ? "grid" : "single-with-mood"}
+              mood={entry.mood}
+              adjective={entry.adjective}
+            />
           {/each}
+        {/each}
       </TabsContent>
 
       <TabsContent value="insights" class="mt-0">
@@ -241,20 +249,19 @@
   <div class="blur-transition"></div>
 
   <!-- Floating Action Button -->
-  <div
-    class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-20"
-    id="test"
-  >
-    <Button
-      class="h-20 w-20 rounded-full bg-white shadow-lg border border-gray-100"
-      variant="ghost"
-      onclick={() => {
-        isOpen = !isOpen;
-      }}
-    >
-      <Plus class="!h-8 !w-8 text-violet-700" strokeWidth={2} />
-    </Button>
-  </div>
+  {#if !isOpen}
+    <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-20">
+      <Button
+        class="h-20 w-20 rounded-full bg-white shadow-lg border border-gray-100"
+        variant="ghost"
+        onclick={() => {
+          isOpen = !isOpen;
+        }}
+      >
+        <Plus class="!h-8 !w-8 text-violet-700" strokeWidth={2} />
+      </Button>
+    </div>
+  {/if}
   <Drawer.Root bind:open={isOpen}>
     <Drawer.Content class="max-h-[80%]">
       <div class="h-full overflow-y-auto pb-8">
