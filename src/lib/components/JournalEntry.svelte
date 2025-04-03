@@ -125,13 +125,13 @@
 
       <div class="relative">
         <div
-          class="overflow-hidden transition-all duration-300 ease-in-out"
-          style:max-height={isExpanded ? "500px" : "80px"}
+          class="overflow-hidden transition-all duration-300 ease-in-out h-auto"
+          style:max-height={isExpanded ? "500px" : "120px"}
         >
           <p class="text-base">{content}</p>
         </div>
 
-        {#if !isExpanded}
+        {#if !isExpanded && content.length > 500}
           <div
             class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none"
             aria-hidden="true"
@@ -151,9 +151,9 @@
           onclick={() => (isExpanded = !isExpanded)}
           class="transition-transform duration-200"
         >
-          {#if isExpanded}
+          {#if isExpanded && (content.length > 500)}
             <ChevronUp class="h-5 w-5 text-gray-400" />
-          {:else}
+          {:else if isExpanded && (content.length > 500)}
             <ChevronDown class="h-5 w-5 text-gray-400" />
           {/if}
         </Button>

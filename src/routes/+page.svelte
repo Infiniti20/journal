@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
   import {
     Calendar,
     Plus,
@@ -20,8 +20,124 @@
 
   import Stats from "$lib/components/Stats.svelte";
   import CreateEntry from "$lib/components/CreateEntry.svelte";
+  import { onMount } from "svelte";
 
-  // Sample data
+  // Define types for journal entries
+  interface JournalEntry {
+    id: number;
+    title: string;
+    content: string;
+    images: string[];
+    date: string;
+    createdAt: Date;
+  }
+
+  // Type for grouped entries
+  interface GroupedEntries {
+    [dateString: string]: JournalEntry[];
+  }
+
+  // State for journal entries
+  let journalEntries: JournalEntry[] = $state([]);
+  let isOpen = $state(false);
+
+  // Load entries from localStorage on mount
+  onMount(() => {
+    loadJournalEntries();
+  });
+
+  // Load entries from localStorage
+  function loadJournalEntries(): void {
+    const storedEntries = localStorage.getItem("journalEntries");
+    if (storedEntries) {
+      journalEntries = JSON.parse(storedEntries);
+    }
+  }
+
+  // Save entries to localStorage
+  function saveJournalEntries(): void {
+    localStorage.setItem("journalEntries", JSON.stringify(journalEntries));
+  }
+
+  // Handle new journal entry submission
+  function handleSubmit(entryData: {
+    title: string;
+    content: string;
+    images: string[];
+  }): void {
+    const newEntry: JournalEntry = {
+      id: Date.now(),
+      title: entryData.title,
+      content: entryData.content,
+      images: entryData.images || [],
+      date: new Date().toISOString(),
+      createdAt: new Date(),
+    };
+
+    // Add the new entry to the beginning of the array
+    journalEntries = [newEntry, ...journalEntries];
+
+    // Save to localStorage
+    saveJournalEntries();
+
+    // Close the drawer
+    isOpen = false;
+  }
+
+  // Group entries by day
+  function getGroupedEntries(): GroupedEntries {
+    const grouped: GroupedEntries = {};
+
+    journalEntries.forEach((entry) => {
+      // Create date string in format "YYYY-MM-DD" for grouping
+      const entryDate = new Date(entry.date);
+      const dateString = entryDate.toISOString().split("T")[0];
+
+      if (!grouped[dateString]) {
+        grouped[dateString] = [];
+      }
+
+      grouped[dateString].push(entry);
+    });
+
+    return grouped;
+  }
+
+  // Format date for display
+  function formatDate(dateString: string): string {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      weekday: "long",
+      month: "short",
+      day: "numeric",
+    });
+  }
+
+  // Get formatted date for group headers
+  function getFormattedGroupDate(dateString: string): string {
+    const date = new Date(dateString);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    // Format as "Today", "Yesterday", or the date
+    if (date.toDateString() === today.toDateString()) {
+      return "Today";
+    } else if (date.toDateString() === yesterday.toDateString()) {
+      return "Yesterday";
+    } else {
+      return formatDate(dateString);
+    }
+  }
+
+  // Sort dates in descending order (newest first)
+  function getSortedDates(grouped: GroupedEntries): string[] {
+    return Object.keys(grouped).sort((a, b) => {
+      return new Date(b).getTime() - new Date(a).getTime();
+    });
+  }
+
+  // Sample data is kept for fallback display
   const todayImages = [
     {
       src: "https://picsum.photos/300/300",
@@ -49,8 +165,6 @@
       alt: "Green door",
     },
   ];
-
-  let isOpen = $state(false);
 </script>
 
 <div
@@ -94,42 +208,27 @@
       </TabsList>
 
       <TabsContent value="entries" class="mt-0">
-        <!-- Today Section -->
-        <h2 class="text-xl font-bold mb-4">Today</h2>
-        <JournalEntry
-          title="My City Adventure"
-          date="Monday, Sep 9"
-          content="With my jet lag under control, we decided to hit a few of the city's biggest attractions. To be honest, I didn't initially go because I wanted to. I just wanted to be able to say I saw them when people i"
-          mood={todayMood}
-          images={todayImages}
-          layout="single-with-mood"
-        />
-
-        <!-- Yesterday Section -->
-        <h2 class="text-xl font-bold mb-4">Yesterday</h2>
-        <JournalEntry
-          title="Exploring the Neighborhood"
-          date="Sunday, Sep 8"
-          content="Found this amazing little café around the corner from our apartment. The espresso was incredible and the view from the window was just perfect for people watching."
-          images={yesterdayImages}
-          layout="grid"
-        />
-        <h2 class="text-xl font-bold mb-4">Yesterday</h2>
-        <JournalEntry
-          title="Exploring the Neighborhood"
-          date="Sunday, Sep 8"
-          content="Found this amazing little café around the corner from our apartment. The espresso was incredible and the view from the window was just perfect for people watching."
-          images={yesterdayImages}
-          layout="grid"
-        />
-        <h2 class="text-xl font-bold mb-4">Yesterday</h2>
-        <JournalEntry
-          title="Exploring the Neighborhood"
-          date="Sunday, Sep 8"
-          content="Found this amazing little café around the corner from our apartment. The espresso was incredible and the view from the window was just perfect for people watching."
-          images={yesterdayImages}
-          layout="grid"
-        />
+        <!-- Display stored journal entries -->
+      
+          <!-- Display actual journal entries grouped by day -->
+          {#each getSortedDates(getGroupedEntries()) as dateString}
+            <h2 class="text-xl font-bold mb-4">
+              {getFormattedGroupDate(dateString)}
+            </h2>
+            {#each getGroupedEntries()[dateString] as entry}
+              <JournalEntry
+                title={entry.title}
+                date={formatDate(entry.date)}
+                content={entry.content}
+                images={entry.images.map((url) => ({
+                  src: url,
+                  alt: entry.title,
+                }))}
+                layout={entry.images.length > 1 ? "grid" : "single-with-mood"}
+                mood={todayMood}
+              />
+            {/each}
+          {/each}
       </TabsContent>
 
       <TabsContent value="insights" class="mt-0">
@@ -160,7 +259,7 @@
     <Drawer.Content class="max-h-[80%]">
       <div class="h-full overflow-y-auto pb-8">
         <Drawer.Header>
-          <CreateEntry></CreateEntry>
+          <CreateEntry {handleSubmit}></CreateEntry>
         </Drawer.Header>
       </div>
     </Drawer.Content>
