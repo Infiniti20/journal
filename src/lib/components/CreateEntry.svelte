@@ -121,14 +121,14 @@
     });
 
     // Reset form after submission
-    title = "";
-    content = "";
-    imagePreviewUrls = [];
-    showInputs = false;
-    showMoodSection = false;
-    mood = 50;
-    selectedAdjective = "";
-    selectRandomPrompts(); // Select new prompts for next time
+    // title = "";
+    // content = "";
+    // imagePreviewUrls = [];
+    // showInputs = false;
+    // showMoodSection = false;
+    // mood = 50;
+    // selectedAdjective = "";
+    // selectRandomPrompts(); // Select new prompts for next time
   }
 </script>
 

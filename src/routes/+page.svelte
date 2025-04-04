@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Plus, Search, MoreHorizontal, BarChart3 } from "lucide-svelte";
+  import { Plus, Search, MoreHorizontal, BarChart3, AlertTriangle } from "lucide-svelte";
   import { Button } from "$lib/components/ui/button";
   import type { JournalEntry } from "$lib/utils";
   import {
@@ -34,7 +34,7 @@
 
   // Initialize the journal store
   initJournalStore();
-
+ 
   // Load entries and setup automatic refreshing when tab changes
   $effect(() => {
     (async () => {
@@ -66,13 +66,19 @@
     mood: number;
     selectedAdjective: string;
   }): Promise<void> {
+            try{
+
     await addJournalEntry(entryData);
 
     // Refresh entries
     entries = await getAllEntries();
+
     groupedEntries = getGroupedEntries();
     sortedDates = getSortedDates(groupedEntries);
-
+    }
+    catch(error){
+     alert(entries)
+    }
     // Close the drawer
     isOpen = false;
   }
