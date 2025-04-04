@@ -9,33 +9,40 @@ const STORE_NAME = "images";
 // In-memory cache of journal entries
 let journalEntries: JournalEntry[] = [];
 let db: IDBDatabase | null = null;
+let dbInitialized = false;
 
 // Initialize the IndexedDB for images
-export function initJournalStore(): void {
+export async function initJournalStore(): Promise<void> {
+  await initImageDB();
   loadJournalEntries();
-  initImageDB();
 }
 
-function initImageDB() {
-  const request = indexedDB.open(DB_NAME, 1);
+function initImageDB(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, 1);
 
-  request.onerror = (event) => {
-    console.error("IndexedDB error:", event);
-  };
+    request.onerror = (event) => {
+      console.error("IndexedDB error:", event);
+      reject(new Error("Failed to open IndexedDB"));
+    };
 
-  request.onupgradeneeded = (event) => {
-    db = (event.target as IDBOpenDBRequest).result;
-    if (!db.objectStoreNames.contains(STORE_NAME)) {
-      db.createObjectStore(STORE_NAME, {
-        keyPath: "id",
-        autoIncrement: true,
-      });
-    }
-  };
+    request.onupgradeneeded = (event) => {
+      db = (event.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, {
+          keyPath: "id",
+          autoIncrement: true,
+        });
+      }
+    };
 
-  request.onsuccess = (event) => {
-    db = (event.target as IDBOpenDBRequest).result;
-  };
+    request.onsuccess = (event) => {
+      db = (event.target as IDBOpenDBRequest).result;
+      dbInitialized = true;
+      console.log("IndexedDB initialized successfully");
+      resolve();
+    };
+  });
 }
 
 // Load entries from localStorage
@@ -95,8 +102,18 @@ export async function saveImagesToIndexedDB(
 export async function getImagesFromIndexedDB(
   imageIds: string[]
 ): Promise<string[]> {
-  if (!db || !imageIds.length) {
+  if (!imageIds.length) {
     return [];
+  }
+  
+  if (!db || !dbInitialized) {
+    console.warn("IndexedDB not initialized yet, trying to initialize");
+    try {
+      await initImageDB();
+    } catch (error) {
+      console.error("Failed to initialize IndexedDB:", error);
+      return [];
+    }
   }
 
   return new Promise((resolve) => {

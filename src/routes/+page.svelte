@@ -25,22 +25,18 @@
     getSortedDates,
     getImagesFromIndexedDB,
   } from "$lib/stores/journalStore.svelte";
+  import { onMount } from "svelte";
 
   let isOpen = $state(false);
   let tab = $state("entries");
   let entries = $state<JournalEntry[]>([]);
   let groupedEntries = $state<Record<string, JournalEntry[]>>({});
   let sortedDates = $state<string[]>([]);
+  let dbInitialized = $state(false);
 
   // Initialize the journal store
-  initJournalStore();
- 
-  // Load entries and setup automatic refreshing when tab changes
-  $effect(() => {
-    (async () => {
-      if (tab === "entries") {
-        // Load all entries with images
-        entries = await getAllEntries();
+  async function reload(){
+    entries = await getAllEntries();
 
         // Update grouped entries
         groupedEntries = getGroupedEntries();
@@ -51,9 +47,28 @@
           for (const entry of groupedEntries[date]) {
             if (entry.imageIds && entry.imageIds.length) {
               entry.images = await getImagesFromIndexedDB(entry.imageIds);
+              console.log(await getImagesFromIndexedDB(entry.imageIds))
             }
           }
         }
+        groupedEntries = groupedEntries;
+  }
+
+  onMount(async () => {
+    try {
+      await initJournalStore();
+      dbInitialized = true;
+      reload();
+    } catch (error) {
+      console.error("Failed to initialize journal store:", error);
+    }
+  });
+  
+  // Load entries and setup automatic refreshing when tab changes
+  $effect(() => {
+    (async () => {
+      if (tab === "entries" && dbInitialized) {
+        reload();
       }
     })();
   });
@@ -71,10 +86,7 @@
     await addJournalEntry(entryData);
 
     // Refresh entries
-    entries = await getAllEntries();
-
-    groupedEntries = getGroupedEntries();
-    sortedDates = getSortedDates(groupedEntries);
+    reload()
     }
     catch(error){
     }
@@ -86,10 +98,7 @@
   async function handleDelete(id: string): Promise<void> {
     deleteEntry(id);
 
-    // Refresh entries
-    entries = await getAllEntries();
-    groupedEntries = getGroupedEntries();
-    sortedDates = getSortedDates(groupedEntries);
+reload()
   }
 </script>
 
