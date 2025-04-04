@@ -1,0 +1,14 @@
+{
+  "name": "Scribe",
+  "short_name": "Scribe",
+  "theme_color": "#5b21b6",
+  "background_color": "#f1ecf1",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "/",
+  "icons": [
+    {
+      "src": "/static/android-chrome-512x512.png"
+    }
+  ]
+}

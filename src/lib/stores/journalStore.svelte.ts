@@ -125,6 +125,11 @@ export async function getImagesFromIndexedDB(
   });
 }
 
+function getRandomDate(from: Date, to: Date) {
+  const fromTime = from.getTime();
+  const toTime = to.getTime();
+  return new Date(fromTime + Math.random() * (toTime - fromTime));
+}
 // Add a new journal entry
 export async function addJournalEntry(entryData: {
   title: string;
@@ -140,7 +145,7 @@ export async function addJournalEntry(entryData: {
     id: uuidv4(),
     title: entryData.title,
     content: entryData.content,
-    date: new Date(),
+    date: getRandomDate(new Date("2025-3-18"),new Date()),
     mood: entryData.mood,
     adjective: entryData.selectedAdjective,
     imageIds: imageIds, // Store image IDs instead of full data URLs
