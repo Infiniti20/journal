@@ -1,187 +1,90 @@
 <script lang="ts">
-  import {
-    Calendar,
-    Plus,
-    Quote,
-    Search,
-    MoreHorizontal,
-    BarChart3,
-  } from "lucide-svelte"; // Assuming you use lucide-svelte
-  import { Button } from "$lib/components/ui/button"; // Adjust imports to match Svelte components
-  import JournalEntry from "$lib/components/JournalEntry.svelte";
-  // import JournalInsights from "./components/JournalInsights.svelte";
+  import { Plus, Search, MoreHorizontal, BarChart3 } from "lucide-svelte";
+  import { Button } from "$lib/components/ui/button";
+  import type { JournalEntry } from "$lib/utils";
   import {
     Tabs,
     TabsContent,
     TabsList,
     TabsTrigger,
-  } from "$lib/components/ui/tabs/"; // Adjust imports accordingly
+  } from "$lib/components/ui/tabs/";
   import * as Drawer from "$lib/components/ui/drawer/index";
 
   import Stats from "$lib/components/Stats.svelte";
   import CreateEntry from "$lib/components/CreateEntry.svelte";
-  import { onMount } from "svelte";
   import JournalInsights from "$lib/components/JournalInsights.svelte";
+  import JournalEntryComponent from "$lib/components/JournalEntry.svelte";
+  import {
+    initJournalStore,
+    getAllEntries,
+    addJournalEntry,
+    deleteEntry,
+    getGroupedEntries,
+    formatDate,
+    getFormattedGroupDate,
+    getSortedDates,
+    getImagesFromIndexedDB,
+  } from "$lib/stores/journalStore.svelte";
 
-  // Define types for journal entries
-  interface JournalEntry {
-    id: number;
-    title: string;
-    content: string;
-    images: string[];
-    date: string;
-    createdAt: Date;
-    mood: number;
-    adjective: string;
-  }
-
-  // Type for grouped entries
-  interface GroupedEntries {
-    [dateString: string]: JournalEntry[];
-  }
-
-  // State for journal entries
-  let journalEntries: JournalEntry[] = $state([]);
   let isOpen = $state(false);
-  let tab = $state("entries")
+  let tab = $state("entries");
+  let entries = $state<JournalEntry[]>([]);
+  let groupedEntries = $state<Record<string, JournalEntry[]>>({});
+  let sortedDates = $state<string[]>([]);
 
-  // Load entries from localStorage on mount
-  onMount(() => {
-    loadJournalEntries();
-    console.log(getGroupedEntries());
+  // Initialize the journal store
+  initJournalStore();
+
+  // Load entries and setup automatic refreshing when tab changes
+  $effect(() => {
+    (async () => {
+      if (tab === "entries") {
+        // Load all entries with images
+        entries = await getAllEntries();
+
+        // Update grouped entries
+        groupedEntries = getGroupedEntries();
+        sortedDates = getSortedDates(groupedEntries);
+
+        // For each group, load images
+        for (const date of sortedDates) {
+          for (const entry of groupedEntries[date]) {
+            if (entry.imageIds && entry.imageIds.length) {
+              entry.images = await getImagesFromIndexedDB(entry.imageIds);
+            }
+          }
+        }
+      }
+    })();
   });
 
-  // Load entries from localStorage
-  function loadJournalEntries(): void {
-    const storedEntries = localStorage.getItem("journalEntries");
-    if (storedEntries) {
-      journalEntries = JSON.parse(storedEntries);
-    }
-  }
-
-  // Save entries to localStorage
-  function saveJournalEntries(): void {
-    localStorage.setItem("journalEntries", JSON.stringify(journalEntries));
-  }
-
   // Handle new journal entry submission
-  function handleSubmit(entryData: {
+  async function handleSubmit(entryData: {
     title: string;
     content: string;
     images: string[];
     mood: number;
     selectedAdjective: string;
-  }): void {
-    const newEntry: JournalEntry = {
-      id: Date.now(),
-      title: entryData.title,
-      content: entryData.content,
-      images: entryData.images || [],
-      date: new Date().toISOString(),
-      mood: entryData.mood,
-      adjective: entryData.selectedAdjective,
-      createdAt: new Date(),
-    };
+  }): Promise<void> {
+    await addJournalEntry(entryData);
 
-    // Add the new entry to the beginning of the array
-    journalEntries = [newEntry, ...journalEntries];
-
-    // Save to localStorage
-    saveJournalEntries();
+    // Refresh entries
+    entries = await getAllEntries();
+    groupedEntries = getGroupedEntries();
+    sortedDates = getSortedDates(groupedEntries);
 
     // Close the drawer
     isOpen = false;
   }
 
-  // Function to delete a journal entry
-  function deleteEntry(entryId: number): void {
-    // Filter out the entry with the matching ID
-    journalEntries = journalEntries.filter((entry) => entry.id !== entryId);
+  // Handle entry deletion
+  async function handleDelete(id: string): Promise<void> {
+    deleteEntry(id);
 
-    // Save the updated entries to localStorage
-    saveJournalEntries();
-  }
-
-  // Group entries by day using local timezone
-  function getGroupedEntries(): GroupedEntries {
-    const grouped: GroupedEntries = {};
-
-    journalEntries.forEach((entry) => {
-      // Create date string in format "YYYY-MM-DD" using local timezone
-      const entryDate = new Date(entry.date);
-      const year = entryDate.getFullYear();
-      const month = String(entryDate.getMonth() + 1).padStart(2, "0"); // Months are 0-indexed
-      const day = String(entryDate.getDate()).padStart(2, "0");
-      const dateString = `${year}-${month}-${day}`;
-
-      if (!grouped[dateString]) {
-        grouped[dateString] = [];
-      }
-
-      grouped[dateString].push(entry);
-    });
-
-    return grouped;
-  }
-
-  // Format date for display
-  function formatDate(dateString: string): string {
-    // For ISO strings from entry.date
-    if (dateString.includes("T")) {
-      const date = new Date(dateString);
-      return date.toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "short",
-        day: "numeric",
-      });
-    }
-    // For YYYY-MM-DD strings from getGroupedEntries
-    else {
-      const [year, month, day] = dateString.split("-").map((n) => parseInt(n));
-      const date = new Date(year, month - 1, day); // Month is 0-indexed
-      return date.toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "short",
-        day: "numeric",
-      });
-    }
-  }
-
-  // Get formatted date for group headers with timezone support
-  function getFormattedGroupDate(dateString: string): string {
-    const [year, month, day] = dateString.split("-").map((n) => parseInt(n));
-    const date = new Date(year, month - 1, day); // Month is 0-indexed
-
-    // Get today and yesterday dates in local timezone
-    const today = new Date();
-    const todayDateString = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const yesterdayDateString = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, "0")}-${String(yesterday.getDate()).padStart(2, "0")}`;
-
-    // Format as "Today", "Yesterday", or the date
-    if (dateString === todayDateString) {
-      return "Today";
-    } else if (dateString === yesterdayDateString) {
-      return "Yesterday";
-    } else {
-      return formatDate(dateString);
-    }
-  }
-
-  // Sort dates in descending order (newest first) with timezone support
-  function getSortedDates(grouped: GroupedEntries): string[] {
-    return Object.keys(grouped).sort((a, b) => {
-      // Convert YYYY-MM-DD strings to Date objects for comparison
-      const [yearA, monthA, dayA] = a.split("-").map((n) => parseInt(n));
-      const [yearB, monthB, dayB] = b.split("-").map((n) => parseInt(n));
-
-      const dateA = new Date(yearA, monthA - 1, dayA);
-      const dateB = new Date(yearB, monthB - 1, dayB);
-
-      return dateB.getTime() - dateA.getTime();
-    });
+    // Refresh entries
+    entries = await getAllEntries();
+    groupedEntries = getGroupedEntries();
+    sortedDates = getSortedDates(groupedEntries);
   }
 </script>
 
@@ -226,15 +129,13 @@
       </TabsList>
 
       <TabsContent value="entries" class="mt-0">
-        <!-- Display stored journal entries -->
-
         <!-- Display actual journal entries grouped by day -->
-        {#each getSortedDates(getGroupedEntries()) as dateString}
+        {#each sortedDates as dateString}
           <h2 class="text-xl font-bold mb-4">
             {getFormattedGroupDate(dateString)}
           </h2>
-          {#each getGroupedEntries()[dateString] as entry}
-            <JournalEntry
+          {#each groupedEntries[dateString] as entry}
+            <JournalEntryComponent
               title={entry.title}
               date={formatDate(entry.date)}
               content={entry.content}
@@ -245,14 +146,16 @@
               layout={entry.images.length > 1 ? "grid" : "single-with-mood"}
               mood={entry.mood}
               adjective={entry.adjective}
-              handleDelete={() => deleteEntry(entry.id)}
+              handleDelete={() => handleDelete(entry.id)}
             />
           {/each}
         {/each}
       </TabsContent>
 
       <TabsContent value="insights" class="mt-0">
-        <JournalInsights />
+        {#if tab == "insights"}
+          <JournalInsights />
+        {/if}
       </TabsContent>
     </Tabs>
   </div>

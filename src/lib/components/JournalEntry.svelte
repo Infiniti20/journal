@@ -60,7 +60,7 @@
           style="background-color: hsl({getHue(mood)}, 100%, 90%)"
         >
           <div class="text-sm font-medium mt-2">{getName(mood)}</div>
-          <MoodBlob size={24} {mood} isStatic={true}></MoodBlob>
+          <MoodBlob size={24} {mood} isStatic={false}></MoodBlob>
           <div class="text-gray-500 text-sm">{adjective}</div>
         </div>
       {/if}
@@ -74,7 +74,7 @@
           mood
         )}, 100%, 90%), hsl({getHue(mood)}, 100%, 85%))"
       >
-        <MoodBlob size={24} {mood} isStatic={true}></MoodBlob>
+        <MoodBlob size={24} {mood} isStatic={false}></MoodBlob>
         <div class="ml-4">
           <div class="text-sm font-medium mt-2">{getName(mood)}</div>
           <div class="text-gray-500 text-sm">{adjective}</div>

@@ -8,7 +8,7 @@ import { API_KEY } from "$env/static/private";
 const genAI = new GoogleGenerativeAI(API_KEY);
 
 const base = `
-**Role:** You are an AI assistant specializing in analyzing personal journal entries for actionable insights.
+**Role:** You are an AI assistant specializing in analyzing personal journal entries for actionable insights. Look for common themes and threads between entries.
 
 **Task:**
 1.  **Analyze:** Carefully read the following journal entry/entries I provide.
@@ -35,6 +35,6 @@ export const POST: RequestHandler = async ({
   const response = await model.generateContent({
     contents:history,
   });
-
-  return new Response(JSON.stringify(response));
+  let t = response.response.text()
+  return new Response(JSON.stringify({"text":t}));
 };

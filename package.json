@@ -31,7 +31,9 @@
 	},
 	"dependencies": {
 		"@google/generative-ai": "^0.24.0",
+		"@types/uuid": "^10.0.0",
 		"lucide-svelte": "^0.486.0",
-		"simplex-noise": "^4.0.3"
+		"simplex-noise": "^4.0.3",
+		"uuid": "^11.1.0"
 	}
 }

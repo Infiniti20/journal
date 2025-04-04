@@ -1,6 +1,14 @@
 <script lang="ts">
   import Button from "$lib/components/ui/button/button.svelte";
-  import { Camera, ChevronDown, ChevronUp, ScanText, SquarePen, Upload, X } from "lucide-svelte";
+  import {
+    Camera,
+    ChevronDown,
+    ChevronUp,
+    ScanText,
+    SquarePen,
+    Upload,
+    X,
+  } from "lucide-svelte";
   import { Label } from "$lib/components/ui/label";
   import { Input } from "$lib/components/ui/input";
   import { Textarea } from "$lib/components/ui/textarea";
@@ -14,7 +22,7 @@
   let title = $state("");
   let content = $state("");
   let showInputs = $state(false);
-  let showMoodSection = $state(false); // New state to control mood section visibility
+  let showMoodSection = $state(false);
   let imagePreviewUrls = $state<string[]>([]);
   let mood = $state(-1);
 
@@ -42,7 +50,6 @@
   }
 
   onMount(() => {
-    initDB();
     selectRandomPrompts(); // Select random prompts when component mounts
   });
 
@@ -78,70 +85,6 @@
 
   let { handleSubmit: originalHandleSubmit } = $props();
 
-  // IndexedDB setup
-  const DB_NAME = "journalImagesDB";
-  const STORE_NAME = "images";
-  let db: IDBDatabase;
-
-  onMount(() => {
-    initDB();
-  });
-
-  function initDB() {
-    const request = indexedDB.open(DB_NAME, 1);
-
-    request.onerror = (event) => {
-      console.error("IndexedDB error:", event);
-    };
-
-    request.onupgradeneeded = (event) => {
-      db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME, {
-          keyPath: "id",
-          autoIncrement: true,
-        });
-      }
-    };
-
-    request.onsuccess = (event) => {
-      db = (event.target as IDBOpenDBRequest).result;
-      loadImages();
-    };
-  }
-
-  function loadImages() {
-    if (!db) return;
-
-    const transaction = db.transaction([STORE_NAME], "readonly");
-    const store = transaction.objectStore(STORE_NAME);
-    const getAllRequest = store.getAll();
-
-    getAllRequest.onsuccess = () => {
-      const storedImages = getAllRequest.result;
-      if (storedImages && storedImages.length > 0) {
-        imagePreviewUrls = storedImages.map((img) => img.dataUrl);
-      }
-    };
-  }
-
-  function saveImagesToIndexedDB() {
-    if (!db) return;
-
-    const transaction = db.transaction([STORE_NAME], "readwrite");
-    const store = transaction.objectStore(STORE_NAME);
-    const clearRequest = store.clear();
-
-    clearRequest.onsuccess = () => {
-      imagePreviewUrls.forEach((dataUrl) => {
-        store.add({
-          dataUrl,
-          timestamp: new Date().getTime(),
-        });
-      });
-    };
-  }
-
   function handleImageChange(event: Event) {
     const input = event.target as HTMLInputElement;
     if (!input.files || input.files.length === 0) return;
@@ -153,7 +96,6 @@
       reader.onload = (e) => {
         const dataUrl = e.target?.result as string;
         imagePreviewUrls = [...imagePreviewUrls, dataUrl];
-        saveImagesToIndexedDB();
       };
       reader.readAsDataURL(file);
     });
@@ -164,13 +106,11 @@
 
   function removeImage(index: number) {
     imagePreviewUrls = imagePreviewUrls.filter((_, i) => i !== index);
-    saveImagesToIndexedDB();
   }
 
   // Replace the original handleSubmit with a wrapper
   function handleSubmit(event: Event) {
     event.preventDefault();
-    saveImagesToIndexedDB();
     originalHandleSubmit({
       title,
       content,
@@ -185,7 +125,7 @@
     content = "";
     imagePreviewUrls = [];
     showInputs = false;
-    showMoodSection = false; // Reset mood section visibility
+    showMoodSection = false;
     mood = 50;
     selectedAdjective = "";
     selectRandomPrompts(); // Select new prompts for next time
@@ -262,12 +202,18 @@
       <!-- Mood toggle button -->
       <Button
         type="button"
-        variant="outline"
+        variant="ghost"
         class="w-full flex items-center justify-between px-0"
-        onclick={() => {showMoodSection = !showMoodSection;mood=showMoodSection ? 50 : 0}}
+        onclick={() => {
+          showMoodSection = !showMoodSection;
+          mood = showMoodSection ? 50 : 0;
+        }}
       >
         <span>How are you feeling?</span>
-        <span class="text-xs">{#if showMoodSection}<ChevronUp></ChevronUp>{:else}<ChevronDown></ChevronDown>{/if}</span>
+        <span class="text-xs"
+          >{#if showMoodSection}<ChevronUp></ChevronUp>{:else}<ChevronDown
+            ></ChevronDown>{/if}</span
+        >
       </Button>
 
       {#if showMoodSection}

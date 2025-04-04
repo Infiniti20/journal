@@ -9,6 +9,10 @@
   type Content,
 } from "@google/generative-ai";
 
+import type {JournalEntry} from "$lib/utils.ts"
+  import {
+    getAllEntries,
+  } from "$lib/stores/journalStore.svelte";
 
   interface Message {
     id: string;
@@ -41,7 +45,7 @@
      isTyping = true;
 
     // Simulate generating a response with a slight delay
-    const response = await generateResponse("");
+    const response = await generateResponse(processJournals(await getAllEntries()));
     const systemMessage: Message = {
       id: (Date.now() + 1).toString(),
       content: response,
@@ -55,7 +59,21 @@
   $effect(() => {
     messagesEndRef?.scrollIntoView({ behavior: "smooth" });
   });
-
+  function processJournals(entries: JournalEntry[]){
+    let res = ""
+    for(let i=0;i<entries.length;i++){
+      let entry = entries[i]
+      res += `${entry.title} - ${entry.date}
+      Mood on a scale from 0-100 (where 0 is very unpleasant, and 100 is very pleasant): ${entry.mood > 0 ? entry.mood:"[No mood provided]"}
+      Adjective that describes mood is ${entry.adjective || "[No adjective provided]"} 
+      ${entry.content}`
+    }
+    return `
+    **Input:**
+    ${res}
+    **Let's begin.** Analyze the text above and provide the actionable insights. Then, wait for my questions.
+    `
+  }
   async function handleSubmit(e: Event) {
     e.preventDefault();
     if (!inputValue.trim()) return;
@@ -77,7 +95,7 @@
     isTyping = true;
 
     // Simulate generating a response with a slight delay
-    const response = await generateResponse(currentInput);
+    const response:any = await generateResponse(currentInput);
     const systemMessage: Message = {
       id: (Date.now() + 1).toString(),
       content: response,
@@ -91,7 +109,17 @@
   async function generateResponse(question: string): Promise<string> {
     history.push({role:"user",parts:[{text:question}]})
 
-    const questionLower = question?.toLowerCase();
+    const response:any = await (await fetch(`/api`, {
+				method: 'POST',
+				body: JSON.stringify({history:history})
+			})).json();
+      history.push({role:"model",parts:[{text:response.text}]})
+      return cleanUpText(response.text)
+
+  }
+
+  function cleanUpText(t:string){
+    return t.replaceAll("\n","<br/>").replaceAll(/\*\*(.*?)\*\*/g, '<b>$1</b>');
 
   }
 </script>
@@ -119,7 +147,7 @@
                 ? 'bg-indigo-500 text-white rounded-br-none'
                 : 'bg-gray-100 text-gray-800 rounded-bl-none'}"
             >
-              <p class="text-sm">{message.content}</p>
+              <p class="text-sm">{@html message.content}</p>
               <div
                 class="text-xs mt-1 {message.sender === 'user'
                   ? 'text-indigo-100'
