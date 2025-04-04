@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { Plus, Search, MoreHorizontal, BarChart3, AlertTriangle } from "lucide-svelte";
+  import {
+    Plus,
+    Search,
+    MoreHorizontal,
+    BarChart3,
+    AlertTriangle,
+  } from "lucide-svelte";
   import { Button } from "$lib/components/ui/button";
   import type { JournalEntry } from "$lib/utils";
   import {
@@ -35,23 +41,23 @@
   let dbInitialized = $state(false);
 
   // Initialize the journal store
-  async function reload(){
+  async function reload() {
     entries = await getAllEntries();
 
-        // Update grouped entries
-        groupedEntries = getGroupedEntries();
-        sortedDates = getSortedDates(groupedEntries);
+    // Update grouped entries
+    groupedEntries = getGroupedEntries();
+    sortedDates = getSortedDates(groupedEntries);
 
-        // For each group, load images
-        for (const date of sortedDates) {
-          for (const entry of groupedEntries[date]) {
-            if (entry.imageIds && entry.imageIds.length) {
-              entry.images = await getImagesFromIndexedDB(entry.imageIds);
-              console.log(await getImagesFromIndexedDB(entry.imageIds))
-            }
-          }
+    // For each group, load images
+    for (const date of sortedDates) {
+      for (const entry of groupedEntries[date]) {
+        if (entry.imageIds && entry.imageIds.length) {
+          entry.images = await getImagesFromIndexedDB(entry.imageIds);
+          console.log(await getImagesFromIndexedDB(entry.imageIds));
         }
-        groupedEntries = groupedEntries;
+      }
+    }
+    groupedEntries = groupedEntries;
   }
 
   onMount(async () => {
@@ -63,7 +69,7 @@
       console.error("Failed to initialize journal store:", error);
     }
   });
-  
+
   // Load entries and setup automatic refreshing when tab changes
   $effect(() => {
     (async () => {
@@ -81,15 +87,12 @@
     mood: number;
     selectedAdjective: string;
   }): Promise<void> {
-            try{
+    try {
+      await addJournalEntry(entryData);
 
-    await addJournalEntry(entryData);
-
-    // Refresh entries
-    reload()
-    }
-    catch(error){
-    }
+      // Refresh entries
+      reload();
+    } catch (error) {}
     // Close the drawer
     isOpen = false;
   }
@@ -98,7 +101,7 @@
   async function handleDelete(id: string): Promise<void> {
     deleteEntry(id);
 
-reload()
+    reload();
   }
 </script>
 
@@ -128,7 +131,7 @@ reload()
     </div>
 
     <!-- Stats -->
-    <Stats></Stats>
+    <Stats {entries}></Stats>
 
     <!-- Tabs for Entries and Insights -->
     <Tabs bind:value={tab} class="mb-6">

@@ -105,7 +105,7 @@ export async function getImagesFromIndexedDB(
   if (!imageIds.length) {
     return [];
   }
-  
+
   if (!db || !dbInitialized) {
     console.warn("IndexedDB not initialized yet, trying to initialize");
     try {
