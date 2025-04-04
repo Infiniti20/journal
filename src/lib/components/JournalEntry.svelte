@@ -1,10 +1,23 @@
 <script lang="ts">
-  import { ChevronDown, ChevronUp, MoreHorizontal } from "lucide-svelte";
+  import {
+    ChevronDown,
+    ChevronUp,
+    MoreHorizontal,
+    Trash2,
+  } from "lucide-svelte";
   import { Card } from "$lib/components/ui/card"; // Adjust import paths for Svelte
   import { Button } from "$lib/components/ui/button";
   import { Separator } from "$lib/components/ui/separator";
+  import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+  } from "$lib/components/ui/dropdown-menu";
   import MoodBlob from "./MoodBlob.svelte";
   import { getHue, getName } from "$lib/utils";
+  import { createEventDispatcher } from "svelte";
+  import type { MouseEventHandler } from "svelte/elements";
 
   interface Props {
     title?: string;
@@ -14,6 +27,7 @@
     images?: { src: string; alt: string }[];
     layout?: string; // Default layout
     adjective: string;
+    handleDelete: () => void; // Updated type to a simple function
   }
 
   let {
@@ -24,6 +38,7 @@
     images = [],
     layout = "single-with-mood",
     adjective = "",
+    handleDelete,
   }: Props = $props();
 
   let isExpanded = $state(false);
@@ -39,7 +54,7 @@
           class="object-cover"
         />
       </div>
-      {#if mood>0}
+      {#if mood > 0}
         <div
           class="h-[150px] flex flex-col items-center justify-center p-4"
           style="background-color: hsl({getHue(mood)}, 100%, 90%)"
@@ -55,7 +70,9 @@
     {#if mood > 0}
       <div
         class="h-[150px] grid items-center grid-cols-[6rem_1fr] justify-center p-4"
-        style="background: linear-gradient(to bottom, hsl({getHue(mood)}, 100%, 90%), hsl({getHue(mood)}, 100%, 85%))"
+        style="background: linear-gradient(to bottom, hsl({getHue(
+          mood
+        )}, 100%, 90%), hsl({getHue(mood)}, 100%, 85%))"
       >
         <MoodBlob size={24} {mood} isStatic={true}></MoodBlob>
         <div class="ml-4">
@@ -145,9 +162,19 @@
             <ChevronDown class="h-5 w-5 text-gray-400" />
           {/if}
         </Button>
-        <Button variant="ghost" size="icon">
-          <MoreHorizontal class="h-5 w-5 text-gray-400" />
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            class="gap-2 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0"
+          >
+            <MoreHorizontal class="text-gray-400" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onclick={handleDelete} class="text-red-500">
+              <Trash2 class="h-4 w-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   </div></Card

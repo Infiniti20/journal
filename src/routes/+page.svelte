@@ -21,6 +21,7 @@
   import Stats from "$lib/components/Stats.svelte";
   import CreateEntry from "$lib/components/CreateEntry.svelte";
   import { onMount } from "svelte";
+  import JournalInsights from "$lib/components/JournalInsights.svelte";
 
   // Define types for journal entries
   interface JournalEntry {
@@ -42,6 +43,7 @@
   // State for journal entries
   let journalEntries: JournalEntry[] = $state([]);
   let isOpen = $state(false);
+  let tab = $state("entries")
 
   // Load entries from localStorage on mount
   onMount(() => {
@@ -89,6 +91,15 @@
 
     // Close the drawer
     isOpen = false;
+  }
+
+  // Function to delete a journal entry
+  function deleteEntry(entryId: number): void {
+    // Filter out the entry with the matching ID
+    journalEntries = journalEntries.filter((entry) => entry.id !== entryId);
+
+    // Save the updated entries to localStorage
+    saveJournalEntries();
   }
 
   // Group entries by day using local timezone
@@ -175,7 +186,7 @@
 </script>
 
 <div
-  class="max-w-md mx-auto bg-gradient-to-b from-[#f7f5f5] to-[#f1ecf1] min-h-screen pb-16 bg-fixed"
+  class="max-w-md mx-auto bg-gradient-to-b from-[#f7f5f5] to-[#f1ecf1] min-h-dvh bg-fixed"
 >
   <div class="p-6 pt-10">
     <!-- Header -->
@@ -203,7 +214,7 @@
     <Stats></Stats>
 
     <!-- Tabs for Entries and Insights -->
-    <Tabs value="entries" class="mb-6">
+    <Tabs bind:value={tab} class="mb-6">
       <TabsList class="grid grid-cols-2 mb-6">
         <TabsTrigger value="entries">Entries</TabsTrigger>
         <TabsTrigger value="insights">
@@ -234,22 +245,23 @@
               layout={entry.images.length > 1 ? "grid" : "single-with-mood"}
               mood={entry.mood}
               adjective={entry.adjective}
+              handleDelete={() => deleteEntry(entry.id)}
             />
           {/each}
         {/each}
       </TabsContent>
 
       <TabsContent value="insights" class="mt-0">
-        <!-- <JournalInsights /> -->
+        <JournalInsights />
       </TabsContent>
     </Tabs>
   </div>
 
   <!-- Blur transition at the bottom -->
-  <div class="blur-transition"></div>
 
   <!-- Floating Action Button -->
-  {#if !isOpen}
+  {#if !isOpen && tab == "entries"}
+    <div class="blur-transition"></div>
     <div class="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-20">
       <Button
         class="h-20 w-20 rounded-full bg-white shadow-lg border border-gray-100"

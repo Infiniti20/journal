@@ -30,6 +30,7 @@
 		"vite": "^6.0.0"
 	},
 	"dependencies": {
+		"@google/generative-ai": "^0.24.0",
 		"lucide-svelte": "^0.486.0",
 		"simplex-noise": "^4.0.3"
 	}
