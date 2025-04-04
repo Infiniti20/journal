@@ -77,7 +77,6 @@
     sortedDates = getSortedDates(groupedEntries);
     }
     catch(error){
-     alert(entries)
     }
     // Close the drawer
     isOpen = false;

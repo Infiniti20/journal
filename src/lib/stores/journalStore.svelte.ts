@@ -136,7 +136,6 @@ export async function addJournalEntry(entryData: {
   // Save images to IndexedDB and get their IDs
   const imageIds = await saveImagesToIndexedDB(entryData.images);
   let d = new Date();
-  alert(d)
   const newEntry: JournalEntry = {
     id: uuidv4(),
     title: entryData.title,
@@ -147,7 +146,6 @@ export async function addJournalEntry(entryData: {
     imageIds: imageIds, // Store image IDs instead of full data URLs
     images: [], // This will be populated when needed
   };
-  alert(JSON.stringify(newEntry))
   journalEntries = [newEntry, ...journalEntries];
   saveJournalEntries(journalEntries);
 }
