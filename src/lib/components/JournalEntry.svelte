@@ -158,7 +158,7 @@
         >
           {#if isExpanded && content.length > 300}
             <ChevronUp class="h-5 w-5 text-gray-400" />
-          {:else if isExpanded && content.length > 300}
+          {:else if !isExpanded && content.length > 300}
             <ChevronDown class="h-5 w-5 text-gray-400" />
           {/if}
         </Button>
