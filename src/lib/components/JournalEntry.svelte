@@ -136,7 +136,7 @@
           <p class="text-base">{content}</p>
         </div>
 
-        {#if !isExpanded && content.length > 500}
+        {#if !isExpanded && content.length > 300}
           <div
             class="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none"
             aria-hidden="true"
@@ -156,9 +156,9 @@
           onclick={() => (isExpanded = !isExpanded)}
           class="transition-transform duration-200"
         >
-          {#if isExpanded && content.length > 500}
+          {#if isExpanded && content.length > 300}
             <ChevronUp class="h-5 w-5 text-gray-400" />
-          {:else if isExpanded && content.length > 500}
+          {:else if isExpanded && content.length > 300}
             <ChevronDown class="h-5 w-5 text-gray-400" />
           {/if}
         </Button>

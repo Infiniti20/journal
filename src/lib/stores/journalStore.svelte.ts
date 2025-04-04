@@ -135,7 +135,7 @@ export async function addJournalEntry(entryData: {
 }): Promise<void> {
   // Save images to IndexedDB and get their IDs
   const imageIds = await saveImagesToIndexedDB(entryData.images);
-  let d = new Date();
+  let d = new Date("2025/3/18");
   const newEntry: JournalEntry = {
     id: uuidv4(),
     title: entryData.title,
