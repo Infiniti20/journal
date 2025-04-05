@@ -192,6 +192,7 @@
   }
 
   async function processImageWithMistralOCR(file: File): Promise<string> {
+    try{
     // Create a Mistral client
     const client = new Mistral({
       apiKey: import.meta.env.VITE_MISTRAL_API_KEY, // Ensure you have this env variable
@@ -232,6 +233,11 @@
 
     // Return the extracted text
     return ocrResponse.pages[0].markdown || "";
+  }
+  catch(error){
+    alert(error)
+    return ""
+  }
   }
 </script>
 
