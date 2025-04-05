@@ -151,6 +151,7 @@ export async function addJournalEntry(entryData: {
   selectedAdjective: string;
 }): Promise<void> {
   // Save images to IndexedDB and get their IDs
+  try{
   const imageIds = await saveImagesToIndexedDB(entryData.images);
   let d = new Date("2025/3/25");
   const newEntry: JournalEntry = {
@@ -165,6 +166,10 @@ export async function addJournalEntry(entryData: {
   };
   journalEntries = [newEntry, ...journalEntries];
   saveJournalEntries(journalEntries);
+}
+catch(error){
+  alert(error)
+}
 }
 
 // Delete a journal entry
