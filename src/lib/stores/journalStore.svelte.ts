@@ -5,6 +5,9 @@ import type { JournalEntry } from "$lib/utils";
 const STORAGE_KEY = "journalEntries";
 const DB_NAME = "journalImagesDB";
 const STORE_NAME = "images";
+const ENTRIES_STORE = "entries";
+// Maximum localStorage size in bytes (approximately 5MB to be safe)
+const MAX_LOCAL_STORAGE_SIZE = 4 * 1024 * 1024;
 
 // In-memory cache of journal entries
 let journalEntries: JournalEntry[] = [];
@@ -13,13 +16,13 @@ let dbInitialized = false;
 
 // Initialize the IndexedDB for images
 export async function initJournalStore(): Promise<void> {
-  await initImageDB();
+  await initIndexedDB();
   loadJournalEntries();
 }
 
-function initImageDB(): Promise<void> {
+function initIndexedDB(): Promise<void> {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, 1);
+    const request = indexedDB.open(DB_NAME, 2); // Version increased to handle schema update
 
     request.onerror = (event) => {
       console.error("IndexedDB error:", event);
@@ -28,10 +31,19 @@ function initImageDB(): Promise<void> {
 
     request.onupgradeneeded = (event) => {
       db = (event.target as IDBOpenDBRequest).result;
+      
+      // Create or ensure images store exists
       if (!db.objectStoreNames.contains(STORE_NAME)) {
         db.createObjectStore(STORE_NAME, {
           keyPath: "id",
           autoIncrement: true,
+        });
+      }
+      
+      // Create entries store for journal entries
+      if (!db.objectStoreNames.contains(ENTRIES_STORE)) {
+        db.createObjectStore(ENTRIES_STORE, {
+          keyPath: "id"
         });
       }
     };
@@ -45,20 +57,108 @@ function initImageDB(): Promise<void> {
   });
 }
 
-// Load entries from localStorage
+// Check if localStorage is approaching quota limits
+function isLocalStorageAlmostFull(): boolean {
+  try {
+    let totalSize = 0;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) || "";
+      const value = localStorage.getItem(key) || "";
+      totalSize += key.length + value.length;
+    }
+    
+    // Return true if we're using more than 80% of our estimated safe limit
+    return totalSize > (MAX_LOCAL_STORAGE_SIZE * 0.8);
+  } catch (e) {
+    console.error("Error checking localStorage size:", e);
+    return true; // Assume it's full if we can't check
+  }
+}
+
+// Load entries from localStorage or IndexedDB
 export function loadJournalEntries(): JournalEntry[] {
-  const storedEntries = localStorage.getItem(STORAGE_KEY);
-  journalEntries = storedEntries ? JSON.parse(storedEntries) : [];
+  try {
+    const storedEntries = localStorage.getItem(STORAGE_KEY);
+    if (storedEntries) {
+      journalEntries = JSON.parse(storedEntries);
+      return journalEntries;
+    }
+  } catch (error) {
+    console.warn("Error loading from localStorage, trying IndexedDB:", error);
+  }
+  
+  // If localStorage failed or was empty, try loading from IndexedDB
+  if (db && dbInitialized) {
+    loadEntriesFromIndexedDB().then(entries => {
+      if (entries.length > 0) {
+        journalEntries = entries;
+      }
+    });
+  }
+  
   return journalEntries;
 }
 
-// Save entries to localStorage
-function saveJournalEntries(entries: JournalEntry[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-  } catch (error) {
-    alert(`Error saving journal entries:, ${error}`);
+// Load entries from IndexedDB
+async function loadEntriesFromIndexedDB(): Promise<JournalEntry[]> {
+  if (!db || !dbInitialized) {
+    return [];
   }
+  
+  return new Promise((resolve) => {
+    const transaction = db!.transaction([ENTRIES_STORE], "readonly");
+    const store = transaction.objectStore(ENTRIES_STORE);
+    const request = store.getAll();
+    
+    request.onsuccess = () => {
+      resolve(request.result || []);
+    };
+    
+    request.onerror = () => {
+      console.error("Failed to load entries from IndexedDB");
+      resolve([]);
+    };
+  });
+}
+
+// Save entries to storage (tries localStorage first, falls back to IndexedDB)
+function saveJournalEntries(entries: JournalEntry[]): void {
+  // Make a copy of entries without the images array to save space
+  const entriesForStorage = entries.map(entry => {
+    const { images, ...entryWithoutImages } = entry;
+    return { ...entryWithoutImages, images: [] };
+  });
+  
+  try {
+    // Check if localStorage is getting full
+    if (isLocalStorageAlmostFull()) {
+      throw new Error("localStorage is approaching quota limits");
+    }
+    
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(entriesForStorage));
+  } catch (error) {
+    console.warn(`Falling back to IndexedDB for entries: ${error}`);
+    saveEntriesToIndexedDB(entriesForStorage);
+  }
+}
+
+// Save entries to IndexedDB as fallback
+async function saveEntriesToIndexedDB(entries: JournalEntry[]): Promise<void> {
+  if (!db || !dbInitialized) {
+    console.error("IndexedDB not initialized for entries");
+    return;
+  }
+  
+  const transaction = db.transaction([ENTRIES_STORE], "readwrite");
+  const store = transaction.objectStore(ENTRIES_STORE);
+  
+  // Clear existing entries
+  store.clear();
+  
+  // Add all entries
+  entries.forEach(entry => {
+    store.add(entry);
+  });
 }
 
 // Save images to IndexedDB and return their IDs
@@ -109,7 +209,7 @@ export async function getImagesFromIndexedDB(
   if (!db || !dbInitialized) {
     console.warn("IndexedDB not initialized yet, trying to initialize");
     try {
-      await initImageDB();
+      await initIndexedDB();
     } catch (error) {
       console.error("Failed to initialize IndexedDB:", error);
       return [];
@@ -150,26 +250,27 @@ export async function addJournalEntry(entryData: {
   mood: number;
   selectedAdjective: string;
 }): Promise<void> {
-  // Save images to IndexedDB and get their IDs
-  try{
-  const imageIds = await saveImagesToIndexedDB(entryData.images);
-  let d = new Date("2025/3/25");
-  const newEntry: JournalEntry = {
-    id: uuidv4(),
-    title: entryData.title,
-    content: entryData.content,
-    date: d,
-    mood: entryData.mood,
-    adjective: entryData.selectedAdjective,
-    imageIds: imageIds, // Store image IDs instead of full data URLs
-    images: [], // This will be populated when needed
-  };
-  journalEntries = [newEntry, ...journalEntries];
-  saveJournalEntries(journalEntries);
-}
-catch(error){
-  alert(error)
-}
+  try {
+    // Save images to IndexedDB and get their IDs
+    const imageIds = await saveImagesToIndexedDB(entryData.images);
+    
+    const newEntry: JournalEntry = {
+      id: uuidv4(),
+      title: entryData.title,
+      content: entryData.content,
+      date: new Date(), // Use current date instead of hardcoded future date
+      mood: entryData.mood,
+      adjective: entryData.selectedAdjective,
+      imageIds: imageIds, // Store image IDs instead of full data URLs
+      images: [], // This will be populated when needed
+    };
+    
+    journalEntries = [newEntry, ...journalEntries];
+    saveJournalEntries(journalEntries);
+  } catch (error) {
+    console.error("Error adding journal entry:", error);
+    alert(`Failed to save journal entry: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 // Delete a journal entry
