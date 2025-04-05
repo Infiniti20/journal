@@ -144,6 +144,7 @@
 
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
+      alert(file)
       if (!file) {
         isScanning = false;
         return;
