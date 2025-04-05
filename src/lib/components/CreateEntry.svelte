@@ -19,6 +19,7 @@
   import { RadioGroup, RadioGroupItem } from "$lib/components/ui/radio-group";
   import { getName } from "$lib/utils";
   import { Mistral } from "@mistralai/mistralai";
+  import { FSWatcher } from "vite";
 
   let title = $state("");
   let content = $state("");
@@ -144,7 +145,7 @@
 
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
-      alert(file)
+      // alert(file)
       if (!file) {
         isScanning = false;
         return;
@@ -213,7 +214,7 @@
     const uploadedFile = await client.files.upload({
       file: {
         fileName: file.name,
-        content: new Uint8Array(buffer),
+        content: buffer,
       },
       purpose: "ocr",
     });
