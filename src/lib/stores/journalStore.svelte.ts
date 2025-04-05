@@ -57,7 +57,7 @@ function saveJournalEntries(entries: JournalEntry[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
   } catch (error) {
-    console.error("Error saving journal entries:", error);
+    alert(`Error saving journal entries:, ${error}`);
   }
 }
 
