@@ -258,7 +258,7 @@ export async function addJournalEntry(entryData: {
       id: uuidv4(),
       title: entryData.title,
       content: entryData.content,
-      date: new Date("2025/4/2"), // Use current date instead of hardcoded future date
+      date: new Date(), // Use current date instead of hardcoded future date
       mood: entryData.mood,
       adjective: entryData.selectedAdjective,
       imageIds: imageIds, // Store image IDs instead of full data URLs
