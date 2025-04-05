@@ -18,7 +18,7 @@
   import MoodBlob from "./MoodBlob.svelte";
   import { RadioGroup, RadioGroupItem } from "$lib/components/ui/radio-group";
   import { getName } from "$lib/utils";
-  import { Mistral } from '@mistralai/mistralai';
+  import { Mistral } from "@mistralai/mistralai";
 
   let title = $state("");
   let content = $state("");
@@ -135,30 +135,30 @@
 
   async function handleScanJournal() {
     isScanning = true;
-    
+
     // Create a file input for capturing image
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    input.capture = "environment";
+
     input.onchange = async (e) => {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) {
         isScanning = false;
         return;
       }
-      
+
       try {
         // Process the image with Mistral OCR
         const result = await processImageWithMistralOCR(file);
-        
+
         // Extract the first sentence as title and the rest as content
         const text = result.trim();
-        
+
         // Find the first sentence end (period, question mark, or exclamation mark followed by space)
         const firstSentenceMatch = text.match(/[.!?]\s/);
-        
+
         if (firstSentenceMatch && firstSentenceMatch.index !== undefined) {
           const splitIndex = firstSentenceMatch.index + 2; // +2 to include the punctuation and space
           title = text.substring(0, splitIndex).trim();
@@ -168,10 +168,10 @@
           title = text.substring(0, 50) + (text.length > 50 ? "..." : "");
           content = text;
         }
-        
+
         // Show the input fields
         showInputs = true;
-        
+
         // Add the scanned image to the previews
         const reader = new FileReader();
         reader.onload = (e) => {
@@ -179,7 +179,6 @@
           imagePreviewUrls = [...imagePreviewUrls, dataUrl];
         };
         reader.readAsDataURL(file);
-        
       } catch (error) {
         console.error("OCR processing failed:", error);
         alert("Failed to process the image. Please try again.");
@@ -187,7 +186,7 @@
         isScanning = false;
       }
     };
-    
+
     // Trigger the file input click
     input.click();
   }
@@ -195,9 +194,9 @@
   async function processImageWithMistralOCR(file: File): Promise<string> {
     // Create a Mistral client
     const client = new Mistral({
-      apiKey: import.meta.env.VITE_MISTRAL_API_KEY // Ensure you have this env variable
+      apiKey: import.meta.env.VITE_MISTRAL_API_KEY, // Ensure you have this env variable
     });
-    
+
     // First, we need to upload the file
     const fileReader = new FileReader();
     const filePromise = new Promise<ArrayBuffer>((resolve, reject) => {
@@ -205,34 +204,34 @@
       fileReader.onerror = reject;
     });
     fileReader.readAsArrayBuffer(file);
-    
+
     const buffer = await filePromise;
-    
+
     // Upload the file
     const uploadedFile = await client.files.upload({
       file: {
         fileName: file.name,
         content: new Uint8Array(buffer),
       },
-      purpose: "ocr"
+      purpose: "ocr",
     });
-    
+
     // Get a signed URL
     const signedUrl = await client.files.getSignedUrl({
       fileId: uploadedFile.id,
     });
-    
+
     // Process with OCR
     const ocrResponse = await client.ocr.process({
       model: "mistral-ocr-latest",
       document: {
         type: "image_url",
         imageUrl: signedUrl.url,
-      }
+      },
     });
-    
+
     // Return the extracted text
-    return ocrResponse.pages[0].markdown|| '';
+    return ocrResponse.pages[0].markdown || "";
   }
 </script>
 
@@ -244,11 +243,7 @@
       showInputs = true;
     }}><SquarePen class="h-4 w-4"></SquarePen>New Entry</Button
   >
-  <Button 
-    variant="ghost"
-    onclick={handleScanJournal}
-    disabled={isScanning}
-  >
+  <Button variant="ghost" onclick={handleScanJournal} disabled={isScanning}>
     <ScanText class="h-4 w-4"></ScanText>
     {#if isScanning}Scanning...{:else}Scan Journal{/if}
   </Button>
